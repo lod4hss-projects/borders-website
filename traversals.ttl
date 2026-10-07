@@ -1,0 +1,68 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix crm: <http://www.cidoc-crm.org/cidoc-crm/> .
+@prefix sdh: <https://sdhss.org/ontology/core/> .
+@prefix sdh-short: <https://sdhss.org/ontology/shortcuts/> .
+@prefix : <https://semantics.rwx.fyi/shapes/borders/> .
+
+# The OntoME profiles in ~/repos/borders/shacl_files describe each class on
+# its own. The pages need to cross the event nodes between them, which a
+# profile never states. These shapes carry the same sh:targetClass, so the
+# loader merges them with the profiles rather than replacing them.
+#
+# Every path here was verified with `page-gen check` against
+# https://sparql-gdb.lod4hss.org/borders
+
+:ConstructionTraversals a sh:NodeShape ;
+    sh:targetClass sdh:C17 ;
+    sh:name "Construction" ;
+    # coordinates live on the place, not on the construction
+    sh:property [
+        sh:path ( sdh:P107 sdh-short:P14 ) ;
+        sh:name "Coordinates" ;
+        sh:description "WKT, reached through sdh:P107 on the Geographical Place." ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path ( sdh:P107 sdh-short:P9 ) ;
+        sh:name "Place" ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+    ] ;
+    # a crm:E12 Production points at what it produced
+    sh:property [
+        sh:path ( [ sh:inversePath crm:P108 ] sdh-short:P4 ) ;
+        sh:name "Created" ;
+        sh:description "Start date of the crm:E12 Production that made it." ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+    ] ;
+    # a crm:E6 Destruction points at what it destroyed
+    sh:property [
+        sh:path ( [ sh:inversePath crm:P13 ] sdh-short:P4 ) ;
+        sh:name "Destroyed" ;
+        sh:description "Start date of the crm:E6 Destruction. No E6 instances exist yet." ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+    ] .
+
+:GroupTraversals a sh:NodeShape ;
+    sh:targetClass crm:E74 ;
+    sh:name "Group" ;
+    # crm:P95 "has formed" on a crm:E66 Formation -- note crm:P99 "dissolved"
+    # is a different predicate from sdh:P99 "has group type"
+    sh:property [
+        sh:path ( [ sh:inversePath crm:P95 ] sdh-short:P4 ) ;
+        sh:name "Founded" ;
+        sh:description "Start date of the crm:E66 Formation. No E66 instances exist yet." ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path ( [ sh:inversePath crm:P99 ] sdh-short:P4 ) ;
+        sh:name "Dissolved" ;
+        sh:description "Start date of the crm:E68 Dissolution. No E68 instances exist yet." ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+    ] .

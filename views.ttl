@@ -1,0 +1,40 @@
+@prefix gen: <https://semantics.rwx.fyi/gen/> .
+@prefix : <https://semantics.rwx.fyi/shapes/borders/> .
+
+:ConstructionMap a gen:Map ;
+    gen:ofShape :ConstructionTraversals ;
+    gen:title "Constructions" ;
+    gen:slug "map" ;
+    gen:navOrder 1 ;
+    gen:geoField "Coordinates" ;
+    gen:colourBy "has construction type" .
+
+:Constructions a gen:Table ;
+    gen:ofShape :ConstructionTraversals ;
+    gen:title "List of Constructions" ;
+    gen:slug "constructions" ;
+    gen:navOrder 2 ;
+    gen:search "Standard Label" ;
+    gen:pageSize 25 ;
+    gen:column [ gen:field "Standard Label"        ; gen:order 1 ; gen:link true ] ;
+    gen:column [ gen:field "has construction type" ; gen:order 2 ] ;
+    gen:column [ gen:field "Created"               ; gen:order 3 ] ;
+    gen:column [ gen:field "Destroyed"             ; gen:order 4 ] ;
+    gen:column [ gen:field "Place"                 ; gen:order 5 ] .
+
+:Groups a gen:Table ;
+    gen:ofShape :GroupTraversals ;
+    gen:title "List of Groups" ;
+    gen:slug "groups" ;
+    gen:navOrder 3 ;
+    gen:search "Standard Label" ;
+    gen:pageSize 25 ;
+    gen:column [ gen:field "Standard Label" ; gen:order 1 ; gen:link true ] ;
+    gen:column [ gen:field "has group type" ; gen:order 2 ] ;
+    gen:column [ gen:field "Founded"        ; gen:order 3 ] ;
+    gen:column [ gen:field "Dissolved"      ; gen:order 4 ] .
+
+:Entity a gen:Card ;
+    gen:title "Entity" ;
+    gen:slug "entity" ;
+    gen:pageSize 10 .

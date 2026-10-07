@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Borders</title>
+<link rel="stylesheet" href="base.css">
+<script>
+  // A resource IRI served by a static host has no page of its own, so the
+  // 404 handler forwards it to the card. This is what makes every IRI in
+  // the store dereferenceable.
+  (function () {
+    var prefix = "/resource";
+    var path = window.location.pathname;
+    if (prefix && (path === prefix || path.indexOf(prefix + '/') === 0)) {
+      window.location.replace(
+        "entity.html" + '?uri=' + encodeURIComponent(window.location.href));
+    }
+  })();
+</script>
+</head>
+<body>
+<header><a class="home" href="index.html">Borders</a></header>
+<main>
+  <h1>Not found</h1>
+  <p class="subtle">No page at <code id="path"></code>.</p>
+  <p><a href="index.html">Back to the index</a></p>
+</main>
+<script>
+  document.getElementById('path').textContent = window.location.pathname;
+</script>
+</body>
+</html>
