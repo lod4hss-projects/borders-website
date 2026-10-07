@@ -16,11 +16,13 @@
     gen:navOrder 2 ;
     gen:search "Standard Label" ;
     gen:pageSize 25 ;
-    gen:column [ gen:field "Standard Label"        ; gen:order 1 ; gen:link true ] ;
-    gen:column [ gen:field "has construction type" ; gen:order 2 ] ;
-    gen:column [ gen:field "Created"               ; gen:order 3 ] ;
-    gen:column [ gen:field "Destroyed"             ; gen:order 4 ] ;
-    gen:column [ gen:field "Place"                 ; gen:order 5 ] .
+    gen:column [ gen:field "Standard Label"        ; gen:label "Construction" ; gen:order 1 ; gen:link true ] ;
+    gen:column [ gen:field "has construction type" ; gen:label "Type"         ; gen:order 2 ] ;
+    gen:column [ gen:field "Created"                                          ; gen:order 3 ] ;
+    gen:column [ gen:field "Destroyed"                                        ; gen:order 4 ] ;
+    # the reference, not its label: a reference resolves its own label and
+    # links to its card
+    gen:column [ gen:field "is located on"         ; gen:label "Place"        ; gen:order 5 ] .
 
 :Groups a gen:Table ;
     gen:ofShape :GroupTraversals ;
@@ -29,8 +31,8 @@
     gen:navOrder 3 ;
     gen:search "Standard Label" ;
     gen:pageSize 25 ;
-    gen:column [ gen:field "Standard Label" ; gen:order 1 ; gen:link true ] ;
-    gen:column [ gen:field "has group type" ; gen:order 2 ] ;
+    gen:column [ gen:field "Standard Label" ; gen:label "Group" ; gen:order 1 ; gen:link true ] ;
+    gen:column [ gen:field "has group type" ; gen:label "Type"  ; gen:order 2 ] ;
     gen:column [ gen:field "Founded"        ; gen:order 3 ] ;
     gen:column [ gen:field "Dissolved"      ; gen:order 4 ] .
 

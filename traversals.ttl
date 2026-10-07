@@ -24,12 +24,6 @@
         sh:datatype xsd:string ;
         sh:maxCount 1 ;
     ] ;
-    sh:property [
-        sh:path ( sdh:P107 sdh-short:P9 ) ;
-        sh:name "Place" ;
-        sh:datatype xsd:string ;
-        sh:maxCount 1 ;
-    ] ;
     # a crm:E12 Production points at what it produced
     sh:property [
         sh:path ( [ sh:inversePath crm:P108 ] sdh-short:P4 ) ;
