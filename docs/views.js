@@ -56,7 +56,11 @@ export function table(config, root) {
     const value = row[column.var];
     if (value === undefined) return '';
     const shown = column.label_var ? row[column.label_var] || value : value;
-    return column.link ? link(config, value, shown) : escapeHtml(shown);
+    if (!column.link) return escapeHtml(shown);
+    // a reference links to what it points at; any other linked column is the
+    // way into the row's own entity, so it links to the subject. Linking a
+    // literal to its own text produces no link at all.
+    return link(config, column.is_ref ? value : row.s, shown);
   }
 
   function draw(rows) {
