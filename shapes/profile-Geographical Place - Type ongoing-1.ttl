@@ -1,0 +1,130 @@
+@prefix sdh-shacl: <https://sdhss.org/shacl/profiles/>. 
+@prefix sh: <http://www.w3.org/ns/shacl#>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
+@prefix sdh-short: <https://sdhss.org/ontology/shortcuts/>.
+@prefix sdh: <https://sdhss.org/ontology/core/>.
+
+sdh-shacl:sdh_C51_Shape a sh:NodeShape ;
+        sh:targetClass sdh:C51 ;
+        sh:name "Geographical Place Kind";
+    
+        sh:property [
+            sh:path sdh-short:P9;
+            sh:name "Standard Label";
+            sh:datatype xsd:string;
+            sh:order 1; 
+            sh:minCount 1;
+            sh:maxCount 1;
+            ];
+    
+        sh:property [
+            sh:path sdh-short:P10;
+            sh:name "Alternative Label";
+            sh:datatype xsd:string;
+            sh:order 2;
+            ];
+    
+        sh:property [
+            sh:path sdh-short:P11;
+            sh:name "Definition";
+            sh:datatype xsd:string;
+            sh:order 3; 
+            sh:minCount 1;
+            ];
+    
+        sh:property [
+            sh:path sdh-short:P12;
+            sh:name "Additional Note";
+            sh:datatype xsd:string;
+            sh:order 4; 
+            ];
+    
+    .
+
+sdh-shacl:sdh_C13_Shape a sh:NodeShape ;
+        sh:targetClass sdh:C13 ;
+        sh:name "Geographical Place";
+    
+        sh:property [
+            sh:path sdh-short:P9;
+            sh:name "Standard Label";
+            sh:datatype xsd:string;
+            sh:order 1; 
+            sh:minCount 1;
+            sh:maxCount 1;
+            ];
+    
+        sh:property [
+            sh:path sdh-short:P10;
+            sh:name "Alternative Label";
+            sh:datatype xsd:string;
+            sh:order 2;
+            ];
+    
+        sh:property [
+            sh:path sdh-short:P11;
+            sh:name "Definition";
+            sh:datatype xsd:string;
+            sh:order 3; 
+            sh:minCount 1;
+            ];
+    
+        sh:property [
+            sh:path sdh-short:P12;
+            sh:name "Additional Note";
+            sh:datatype xsd:string;
+            sh:order 4; 
+            ];
+    
+        sh:property [
+            sh:path sdh:P103 ;
+            sh:name "has geographical place type" ;
+            sh:class sdh:C14 ;
+            sh:maxCount 1 ;
+        ];
+    .
+
+sdh-shacl:sdh_C14_Shape a sh:NodeShape ;
+        sh:targetClass sdh:C14 ;
+        sh:name "Geographical Place Type";
+    
+        sh:property [
+            sh:path sdh-short:P9;
+            sh:name "Standard Label";
+            sh:datatype xsd:string;
+            sh:order 1; 
+            sh:minCount 1;
+            sh:maxCount 1;
+            ];
+    
+        sh:property [
+            sh:path sdh-short:P10;
+            sh:name "Alternative Label";
+            sh:datatype xsd:string;
+            sh:order 2;
+            ];
+    
+        sh:property [
+            sh:path sdh-short:P11;
+            sh:name "Definition";
+            sh:datatype xsd:string;
+            sh:order 3; 
+            sh:minCount 1;
+            ];
+    
+        sh:property [
+            sh:path sdh-short:P12;
+            sh:name "Additional Note";
+            sh:datatype xsd:string;
+            sh:order 4; 
+            ];
+    
+        sh:property [
+            sh:path sdh:P104 ;
+            sh:name "is a specialisation of" ;
+            sh:class sdh:C51 ;
+            sh:maxCount 1 ;
+        ];
+    .

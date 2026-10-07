@@ -1,16 +1,18 @@
 [site]
 title = "Borders"
-out = "out"
+out = "docs"
 resource_prefix = "https://borders.lod4hss.org/resource/"
 label_predicate = "https://sdhss.org/ontology/shortcuts/P9"
+# Vendored from lod4hss-projects/borders @ shacl_files so this directory is
+# self-contained: `cp -r sites/borders <new repo>` has to build on its own.
 shapes = [
-  "/home/tav/repos/borders/shacl_files/shacl-Construction - Type ongoing.ttl",
-  "/home/tav/repos/borders/shacl_files/profile-Construction - Location light ongoing-1.ttl",
-  "/home/tav/repos/borders/shacl_files/shacl-Construction - Production and Destruction ongoing (1).ttl",
-  "/home/tav/repos/borders/shacl_files/shacl-Geographical Place - Geocoordonates Light ongoing.ttl",
-  "/home/tav/repos/borders/shacl_files/profile-Geographical Place - Type ongoing-1.ttl",
-  "/home/tav/repos/borders/shacl_files/profile-Group - Type -1.ttl",
-  "/home/tav/repos/borders/shacl_files/shacl-Group - Formation and Dissolution events.ttl",
+  "shapes/shacl-Construction - Type ongoing.ttl",
+  "shapes/profile-Construction - Location light ongoing-1.ttl",
+  "shapes/shacl-Construction - Production and Destruction ongoing (1).ttl",
+  "shapes/shacl-Geographical Place - Geocoordonates Light ongoing.ttl",
+  "shapes/profile-Geographical Place - Type ongoing-1.ttl",
+  "shapes/profile-Group - Type -1.ttl",
+  "shapes/shacl-Group - Formation and Dissolution events.ttl",
   "traversals.ttl",
   "views.ttl",
 ]
