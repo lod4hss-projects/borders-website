@@ -109,6 +109,61 @@ export function table(config, root) {
   load();
 }
 
+const CLIPBOARD = '<rect x="9" y="9" width="11" height="11" rx="2"></rect>'
+  + '<path d="M5 15V5a2 2 0 0 1 2-2h8"></path>';
+const TICK = '<path d="M5 13l4 4L19 7"></path>';
+
+function icon(paths) {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths}</svg>`;
+}
+
+async function toClipboard(text) {
+  try {
+    if (window.isSecureContext && navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (error) {
+    // fall through to the older path
+  }
+  // a site served over http from anything but localhost is not a secure
+  // context, and navigator.clipboard is undefined there
+  try {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.top = '-1000px';
+    document.body.appendChild(area);
+    area.select();
+    const copied = document.execCommand('copy');
+    document.body.removeChild(area);
+    return copied;
+  } catch (error) {
+    return false;
+  }
+}
+
+function wireCopy(button, text) {
+  if (!button) return;
+  let reset = null;
+  button.addEventListener('click', async () => {
+    const done = await toClipboard(text);
+    const label = done ? 'Copied' : 'Press Ctrl+C to copy';
+    button.innerHTML = icon(done ? TICK : CLIPBOARD);
+    button.dataset.state = done ? 'copied' : 'failed';
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    clearTimeout(reset);
+    reset = setTimeout(() => {
+      button.innerHTML = icon(CLIPBOARD);
+      delete button.dataset.state;
+      button.title = 'Copy';
+      button.setAttribute('aria-label', 'Copy the entity URI');
+    }, 1800);
+  });
+}
+
 export function card(config, root) {
   const params = new URLSearchParams(window.location.search);
   const uri = params.get('uri');
@@ -128,7 +183,10 @@ export function card(config, root) {
     header.innerHTML =
       `<h1>${escapeHtml(row.label || uri)}</h1>`
       + `<p class="subtle">${escapeHtml(cls)}</p>`
-      + `<p class="subtle"><code>${escapeHtml(uri)}</code></p>`;
+      + `<p class="subtle uri"><code>${escapeHtml(uri)}</code>`
+      + `<button type="button" class="copy" data-copy title="Copy"`
+      + ` aria-label="Copy the entity URI">${icon(CLIPBOARD)}</button></p>`;
+    wireCopy(header.querySelector('[data-copy]'), uri);
   }
 
   function panel(name, query, draw) {

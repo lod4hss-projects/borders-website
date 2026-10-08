@@ -160,3 +160,37 @@ details.table-view { margin: 12px 0; }
 details.table-view summary { cursor: pointer; font-size: 13px; color: var(--h2); }
 details.table-view table { margin-top: 8px; background: var(--chart-surface); border: 1px solid var(--line); border-radius: 4px; }
 details.table-view td.num, details.table-view th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* --- copy the entity URI --- */
+
+.uri { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+button.copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--subtle);
+  cursor: pointer;
+  flex: none;
+}
+
+button.copy:hover { color: var(--h2); border-color: var(--h2); }
+button.copy:focus-visible { outline: 2px solid var(--h2); outline-offset: 1px; }
+button.copy[data-state="copied"] { color: #0ca30c; border-color: #0ca30c; }
+button.copy[data-state="failed"] { color: var(--error); border-color: var(--error); }
+
+button.copy svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
