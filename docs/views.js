@@ -1,4 +1,5 @@
-import { coordinates, count, debounce, fill, paginate, run } from './sparql.js';
+import { coordinates, count, debounce, fill, geometry, paginate, run }
+  from './sparql.js';
 
 export function escapeHtml(text) {
   const node = document.createElement('div');
@@ -250,6 +251,13 @@ export function card(config, root) {
 // category, never its rank in the current result set.
 const OTHER_LABEL = 'Other';
 
+// A mark with no value for the colour field is a category of its own, and not
+// the same one as Other: Other is "ranked below the top three", this is "the
+// field is empty". So it cannot share Other's grey, and a fourth hue is what
+// the palette cap rules out. It is drawn hollow instead -- surface fill, grey
+// ring -- which reads as absence without spending a colour.
+const UNKNOWN_LABEL = 'Unknown';
+
 // Leaflet writes fill and stroke as SVG presentation attributes, and an
 // attribute value is not CSS: var(--series-1) is never resolved there and the
 // mark renders with an invalid paint. So the tokens are read off the document
@@ -283,8 +291,9 @@ export function palette() {
 
 function classify(values, series) {
   const tally = new Map();
+  let blank = 0;
   for (const value of values) {
-    if (!value) continue;
+    if (!value) { blank += 1; continue; }
     tally.set(value, (tally.get(value) || 0) + 1);
   }
   const ranked = [...tally.entries()].sort(
@@ -292,7 +301,56 @@ function classify(values, series) {
   const colours = new Map();
   ranked.slice(0, series.length).forEach(([name], i) => colours.set(name, series[i]));
   const folded = ranked.length > series.length;
-  return { colours, folded };
+  return { colours, folded, blank };
+}
+
+// one swatch rule for the legend and for the popup list, so a row in the
+// list is recognisably the same thing as the slice it stands for
+function swatch(colour, ink) {
+  return colour
+    ? `background:${colour}`
+    : `background:${ink.surface};box-shadow:0 0 0 2px ${ink.other}`;
+}
+
+// Several entities on one coordinate used to draw one marker each, stacked,
+// of which only the last was clickable and the rest unreachable -- five
+// constructions share the Lydda Airport point. They become one mark whose
+// popup lists all of them.
+function cluster(placed) {
+  const groups = new Map();
+  for (const p of placed) {
+    const key = `${p.point.lat},${p.point.long}`;
+    const found = groups.get(key);
+    if (found) found.members.push(p);
+    else groups.set(key, { point: p.point, members: [p] });
+  }
+  return [...groups.values()];
+}
+
+// A mark covering more than one category is split into slices rather than
+// taking the colour of whichever category happens to outnumber the others,
+// which would hide the rest behind a click. Slices follow legend order, so a
+// category keeps both its colour and its position from point to point.
+function pie(parts, size, ink) {
+  const total = parts.reduce((sum, part) => sum + part.n, 0);
+  let turned = 0;
+  const stops = parts.map((part) => {
+    const from = (turned / total) * 360;
+    turned += part.n;
+    return `${part.colour || ink.surface} ${from}deg `
+      + `${(turned / total) * 360}deg`;
+  });
+  // a slice standing for the empty category is surface-coloured, so the ring
+  // has to be the grey one or that slice would melt into a white ring --
+  // the same rule a wholly empty mark already follows
+  const ring = parts.some((part) => !part.colour) ? ink.other : ink.surface;
+  return L.divIcon({
+    className: 'map-pie',
+    html: `<span style="background:conic-gradient(${stops.join(',')});`
+      + `border-color:${ring}"></span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
 }
 
 function tooltip(root) {
@@ -334,57 +392,153 @@ export function map(config, root) {
       const rows = await run(config.endpoint, config.rows);
       const placed = [];
       for (const row of rows) {
-        const point = coordinates(row[config.geoVar]);
-        if (point) placed.push({ row, point });
+        const shape = geometry(row[config.geoVar]);
+        if (shape) placed.push({ row, point: shape.point, rings: shape.rings });
       }
-      const counted = config.countVar
-        ? placed.map((p) => Number(p.row[config.countVar]) || 0) : [];
-      const largest = counted.length ? Math.max(...counted) : 0;
+      const groups = cluster(placed);
+      const countOf = (row) =>
+        (config.countVar ? Number(row[config.countVar]) || 0 : 0);
+      // a mark standing for several entities is scaled by what they add up
+      // to, so the scale is set by group totals and not by single records
+      const totals = groups.map(
+        (g) => g.members.reduce((sum, p) => sum + countOf(p.row), 0));
+      const largest = config.countVar && totals.length ? Math.max(...totals) : 0;
       const kinds = config.colourLabelVar || config.colourVar;
-      const { colours, folded } = classify(
+      const { colours, folded, blank } = classify(
         kinds ? placed.map((p) => p.row[kinds]) : [], ink.series);
 
-      const bounds = [];
-      for (const { row, point } of placed) {
+      // the legend is settled before the first mark is drawn, because how
+      // many entries it ends up with is also the answer to "is colour saying
+      // anything here" -- and the marks have to agree with the legend
+      const entries = [...colours.entries()];
+      if (folded) entries.push([OTHER_LABEL, ink.other]);
+      // null stands for the hollow swatch, which has no colour to name
+      if (blank) entries.push([config.unknownLabel || UNKNOWN_LABEL, null]);
+      // one category carries no information, so the marks fall back to slot 1
+      const telling = entries.length > 1;
+      const unknownName = config.unknownLabel || UNKNOWN_LABEL;
+      // which legend entry a record belongs to: its own category, Other once
+      // it has ranked out of the palette, or the empty one
+      const entryOf = (row) => {
         const kind = kinds ? row[kinds] : null;
-        const colour = colours.size > 1
-          ? (colours.get(kind) || ink.other) : ink.series[0];
-        const value = config.countVar ? Number(row[config.countVar]) || 0 : 0;
-        const marker = L.circleMarker([point.lat, point.long], {
-          radius: radius(value, largest),
-          fillColor: colour,
-          color: ink.surface,
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 0.85,
-        }).addTo(view);
-        const target = href(config, row.s);
-        marker.bindPopup(
-          `<div class="marker-popup"><strong>${escapeHtml(row[config.labelVar])}</strong>`
-          + (kind ? `<div>${escapeHtml(kind)}</div>` : '')
-          + (config.countVar ? `<div class="count">${value}</div>`
-            + `<div>${escapeHtml(config.countLabel || 'records')}</div>` : '')
-          + (target ? `<p><a href="${escapeHtml(target)}">Open this record</a></p>` : '')
-          + '</div>');
+        if (!kind) return unknownName;
+        return colours.has(kind) ? kind : OTHER_LABEL;
+      };
+      const entryColour = new Map(entries);
+
+      // A lone record keeps the popup it always had. A shared point gets the
+      // list instead, because naming only the one that happened to be drawn
+      // last is how the others became unreachable in the first place.
+      const popup = (members) => {
+        if (members.length === 1) {
+          const { row } = members[0];
+          const kind = kinds ? row[kinds] : null;
+          const target = href(config, row.s);
+          const value = countOf(row);
+          return `<div class="marker-popup"><strong>${escapeHtml(row[config.labelVar])}</strong>`
+            + (kind ? `<div>${escapeHtml(kind)}</div>` : '')
+            + (config.countVar ? `<div class="count">${value}</div>`
+              + `<div>${escapeHtml(config.countLabel || 'records')}</div>` : '')
+            + (target ? `<p><a href="${escapeHtml(target)}">Open this record</a></p>` : '')
+            + '</div>';
+        }
+        const items = members.map(({ row }) => {
+          const name = escapeHtml(row[config.labelVar]);
+          const target = href(config, row.s);
+          const kind = (kinds ? row[kinds] : null) || (telling ? unknownName : '');
+          return '<li>'
+            + (telling ? '<span class="swatch" style="'
+              + `${swatch(entryColour.get(entryOf(row)), ink)}"></span>` : '')
+            + (target ? `<a href="${escapeHtml(target)}">${name}</a>`
+              : `<strong>${name}</strong>`)
+            + (kind ? `<span class="kind">${escapeHtml(kind)}</span>` : '')
+            + (config.countVar
+              ? `<span class="count">${countOf(row)}</span>` : '')
+            + '</li>';
+        }).join('');
+        return '<div class="marker-popup">'
+          + `<strong>${members.length} records here</strong>`
+          + `<ul class="marker-list">${items}</ul></div>`;
+      };
+
+      const marks = groups.map((group) => ({
+        ...group,
+        parts: telling
+          ? entries
+            .map(([name, colour]) => ({
+              name,
+              colour,
+              n: group.members.filter((p) => entryOf(p.row) === name).length,
+            }))
+            .filter((part) => part.n > 0)
+          : [],
+      }));
+
+      const bounds = [];
+      // every area goes down before any mark, so a later group's shape cannot
+      // bury an earlier group's mark
+      for (const { members, parts } of marks) {
+        const only = parts.length === 1 ? parts[0] : null;
+        // the area is context, not identity: it takes the group's colour when
+        // the group has just the one, and stays neutral when it does not
+        const tint = only && only.colour ? only.colour : ink.other;
+        const seen = new Set();
+        for (const { rings } of members) {
+          if (!rings || seen.has(JSON.stringify(rings))) continue;
+          seen.add(JSON.stringify(rings));
+          L.polygon(rings, {
+            color: tint,
+            weight: 1,
+            opacity: 0.6,
+            fillColor: tint,
+            fillOpacity: 0.08,
+            // clicks belong to the mark, which carries the popup
+            interactive: false,
+          }).addTo(view);
+          for (const ring of rings) bounds.push(...ring);
+        }
+      }
+
+      for (const { point, members, parts } of marks) {
+        const value = members.reduce((sum, p) => sum + countOf(p.row), 0);
+        // a mark standing for several records is drawn a little larger, or a
+        // shared point is indistinguishable from a lone one and the slices of
+        // a pie have no room to read. Where a count field is configured the
+        // radius already carries the group's total, so this keeps out of it.
+        const size = radius(value, largest)
+          + (config.countVar ? 0 : Math.min(members.length - 1, 4));
+        const only = parts.length === 1 ? parts[0] : null;
+        const empty = Boolean(only) && !only.colour;
+        const marker = parts.length > 1
+          ? L.marker([point.lat, point.long],
+            { icon: pie(parts, size * 2, ink) }).addTo(view)
+          : L.circleMarker([point.lat, point.long], {
+            radius: size,
+            fillColor: !only ? ink.series[0]
+              : empty ? ink.surface : only.colour,
+            color: empty ? ink.other : ink.surface,
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.85,
+          }).addTo(view);
+        marker.bindPopup(popup(members));
         bounds.push([point.lat, point.long]);
       }
       if (bounds.length) view.fitBounds(bounds, { padding: [30, 30] });
 
       // identity is never colour alone: every class is named here, which
       // also supplies the relief the palette validation asks for
-      const entries = [...colours.entries()];
-      if (folded) entries.push([OTHER_LABEL, ink.other]);
-      // one class carries no information: a single-entry legend is noise,
-      // and the marks fall back to slot 1
-      legendBox.innerHTML = entries.length > 1
+      legendBox.innerHTML = telling
         ? entries.map(([name, colour]) =>
-          `<li><span class="swatch" style="background:${colour}"></span>`
+          `<li><span class="swatch" style="${swatch(colour, ink)}"></span>`
           + `${escapeHtml(name)}</li>`).join('')
         : '';
 
       const dropped = rows.length - placed.length;
       note.textContent =
         `${placed.length} of ${rows.length} records are on the map`
+        // otherwise a map of 17 records showing 9 marks looks like a bug
+        + (groups.length < placed.length ? `, at ${groups.length} locations` : '')
         + (dropped ? `; ${dropped} had coordinates that could not be read.` : '.');
     } catch (error) {
       fail(canvas, error);

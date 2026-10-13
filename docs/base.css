@@ -126,10 +126,20 @@ footer {
 
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0; padding: 0; list-style: none; }
 .legend li { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); }
-.legend .swatch { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--chart-surface); box-shadow: 0 0 0 1px rgba(0,0,0,.18); }
+/* shared by the legend and by the per-record list in a marker popup, so a
+   row in the list is visibly the same thing as the slice it stands for */
+.swatch { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--chart-surface); box-shadow: 0 0 0 1px rgba(0,0,0,.18); flex: none; }
 
 .marker-popup strong { display: block; color: var(--h1); }
 .marker-popup .count { font-size: 18px; font-weight: 600; }
+.marker-list { margin: 6px 0 0; padding: 0; list-style: none; }
+.marker-list li { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.marker-list .kind { color: var(--subtle); font-size: 12px; }
+.marker-list .count { font-size: 13px; font-weight: 600; margin-left: auto; }
+
+/* a mark covering more than one category: the conic-gradient slices and the
+   ring colour are written by views.js, the box model belongs here */
+.map-pie span { display: block; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--chart-surface); box-shadow: 0 0 0 1px rgba(0,0,0,.18); }
 
 .chart { background: var(--chart-surface); border: 1px solid var(--line); border-radius: 4px; padding: 12px 8px 4px; }
 .chart svg { display: block; width: 100%; height: auto; }

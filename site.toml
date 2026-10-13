@@ -13,9 +13,15 @@ shapes = [
   "shapes/profile-Geographical Place - Type ongoing-1.ttl",
   "shapes/profile-Group - Type -1.ttl",
   "shapes/shacl-Group - Formation and Dissolution events.ttl",
+  "shapes/use.ttl",
   "traversals.ttl",
   "views.ttl",
 ]
 
 [endpoint]
 url = "https://sparql-gdb.lod4hss.org/borders"
+
+[map]
+url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}"
+attribution = "Tiles &copy; <a href=\"https://www.esri.com/\">Esri</a>"
+max_zoom = 13

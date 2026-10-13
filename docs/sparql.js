@@ -104,3 +104,59 @@ export function coordinates(text) {
   if (Math.abs(lat) > 90 || Math.abs(long) > 180) return null;
   return { lat, long };
 }
+
+// every "long lat" pair inside one ring of a WKT geometry
+function vertices(text) {
+  const out = [];
+  const pair = /(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g;
+  let found = pair.exec(text);
+  while (found !== null) {
+    const long = Number(found[1]);
+    const lat = Number(found[2]);
+    if (Math.abs(lat) <= 90 && Math.abs(long) <= 180) out.push([lat, long]);
+    found = pair.exec(text);
+  }
+  // WKT closes a ring by repeating the first vertex; carrying the duplicate
+  // would weight it twice in the fallback below
+  const first = out[0];
+  const last = out[out.length - 1];
+  if (out.length > 1 && first[0] === last[0] && first[1] === last[1]) out.pop();
+  return out;
+}
+
+// The area centroid, by the shoelace formula -- not the mean vertex, which a
+// long shape drags towards whichever end was drawn in more detail.
+function centre(ring) {
+  let twice = 0;
+  let lat = 0;
+  let long = 0;
+  for (let i = 0; i < ring.length; i += 1) {
+    const [latA, longA] = ring[i];
+    const [latB, longB] = ring[(i + 1) % ring.length];
+    const cross = (longA * latB) - (longB * latA);
+    twice += cross;
+    lat += (latA + latB) * cross;
+    long += (longA + longB) * cross;
+  }
+  if (!twice) {
+    // a ring enclosing no area at all, so there is nothing to weight by
+    const sum = ring.reduce((a, p) => [a[0] + p[0], a[1] + p[1]], [0, 0]);
+    return { lat: sum[0] / ring.length, long: sum[1] / ring.length };
+  }
+  return { lat: lat / (3 * twice), long: long / (3 * twice) };
+}
+
+// A POLYGON is an extent, not a place: reading it as a point put the mark on
+// its first corner, which for a bounding box is a spot nothing is at. The
+// rings come back so the map can draw the shape, and the point is the
+// centroid, which is what everything else -- colour, clustering, the popup --
+// goes on treating as the mark's position.
+export function geometry(text) {
+  const inner = String(text || '').match(/\(([^()]*)\)/g) || [];
+  const rings = inner.map(vertices).filter((ring) => ring.length >= 3);
+  if (!rings.length) {
+    const point = coordinates(text);
+    return point ? { point, rings: null } : null;
+  }
+  return { point: centre(rings[0]), rings };
+}

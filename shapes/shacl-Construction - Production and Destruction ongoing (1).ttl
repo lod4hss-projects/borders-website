@@ -1,4 +1,4 @@
-@prefix sdh-shacl: <https://sdhss.org/shacl/profiles/>. 
+@prefix sdh-shacl: <https://sdhss.org/shacl/profiles/>.
 @prefix sh: <http://www.w3.org/ns/shacl#>.
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
@@ -10,66 +10,66 @@
 sdh-shacl:sdh_C17_Shape a sh:NodeShape ;
         sh:targetClass sdh:C17 ;
         sh:name "Construction";
-    
+
         sh:property [
             sh:path sdh-short:P9;
             sh:name "Standard Label";
             sh:datatype xsd:string;
-            sh:order 1; 
+            sh:order 1;
             sh:minCount 1;
             sh:maxCount 1;
             ];
-    
+
         sh:property [
             sh:path sdh-short:P10;
             sh:name "Alternative Label";
             sh:datatype xsd:string;
             sh:order 2;
             ];
-    
+
         sh:property [
             sh:path sdh-short:P11;
             sh:name "Definition";
             sh:datatype xsd:string;
-            sh:order 3; 
+            sh:order 3;
             sh:minCount 1;
             ];
-    
+
         sh:property [
             sh:path sdh-short:P12;
             sh:name "Additional Note";
             sh:datatype xsd:string;
             sh:order 4;
             ];
-    
+
     .
 
 sdh-shacl:crm_E6_Shape a sh:NodeShape ;
         sh:targetClass crm:E6 ;
         sh:name "Destruction";
-    
+
         sh:property [
             sh:path sdh-short:P9;
             sh:name "Standard Label";
             sh:datatype xsd:string;
-            sh:order 1; 
+            sh:order 1;
             sh:maxCount 1;
             ];
-    
+
         sh:property [
             sh:path sdh-short:P10;
             sh:name "Alternative Label";
             sh:datatype xsd:string;
             sh:order 2;
             ];
-    
+
         sh:property [
             sh:path sdh-short:P11;
             sh:name "Definition";
             sh:datatype xsd:string;
-            sh:order 3; 
+            sh:order 3;
             ];
-    
+
         sh:property [
             sh:path sdh-short:P12;
             sh:name "Additional Note";
@@ -97,7 +97,7 @@ sdh-shacl:crm_E6_Shape a sh:NodeShape ;
             sh:datatype xsd:string;
             sh:order 7;
             ];
-    
+
         sh:property [
             sh:path crm:P13 ;
             sh:name "destroyed" ;
@@ -108,29 +108,29 @@ sdh-shacl:crm_E6_Shape a sh:NodeShape ;
 sdh-shacl:crm_E12_Shape a sh:NodeShape ;
         sh:targetClass crm:E12 ;
         sh:name "Production";
-    
+
         sh:property [
             sh:path sdh-short:P9;
             sh:name "Standard Label";
             sh:datatype xsd:string;
-            sh:order 1; 
+            sh:order 1;
             sh:maxCount 1;
             ];
-    
+
         sh:property [
             sh:path sdh-short:P10;
             sh:name "Alternative Label";
             sh:datatype xsd:string;
             sh:order 2;
             ];
-    
+
         sh:property [
             sh:path sdh-short:P11;
             sh:name "Definition";
             sh:datatype xsd:string;
-            sh:order 3; 
+            sh:order 3;
             ];
-    
+
         sh:property [
             sh:path sdh-short:P12;
             sh:name "Additional Note";
@@ -158,7 +158,7 @@ sdh-shacl:crm_E12_Shape a sh:NodeShape ;
             sh:datatype xsd:string;
             sh:order 7;
             ];
-    
+
         sh:property [
             sh:path crm:P108 ;
             sh:name "has produced" ;

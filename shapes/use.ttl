@@ -1,0 +1,102 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix crm: <http://www.cidoc-crm.org/cidoc-crm/> .
+@prefix sdh: <https://sdhss.org/ontology/core/> .
+@prefix sdh-short: <https://sdhss.org/ontology/shortcuts/> .
+@prefix : <https://semantics.rwx.fyi/shapes/borders/> .
+
+# Use (sdh:C23) and Use Type (sdh:C24) have no OntoME profile among the
+# vendored files, so they are specified here by hand. Deliberately not in
+# shapes/: that directory is a verbatim copy of lod4hss-projects/borders @
+# shacl_files, and anything hand-written there is lost on the next sync.
+#
+# The names and cardinalities are the ones SDHSS core declares
+# (ontome.net/class/727 and /728), not guesses from the local names. They
+# agree with a `page-gen introspect --cls https://sdhss.org/ontology/core/C23`
+# census of the endpoint: 7 uses, every one of them carrying a label, a type,
+# a group and a construction, and 6 of the 7 an end date.
+#
+# A shape merges with any later profile that carries the same
+# sh:targetClass, so a real C23 profile can arrive without this file having
+# to be removed first.
+
+:UseShape a sh:NodeShape ;
+    sh:targetClass sdh:C23 ;
+    sh:name "Use" ;
+
+    sh:property [
+        sh:path sdh-short:P9 ;
+        sh:name "Standard Label" ;
+        sh:datatype xsd:string ;
+        sh:order 1 ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    # P29 has use type (is use type of), C23 -> C24, 0..n to 0..1
+    sh:property [
+        sh:path sdh:P29 ;
+        sh:name "has use type" ;
+        sh:class sdh:C24 ;
+        sh:order 2 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    # P30 is use by (makes use of), 0..n to 0..1. SDHSS ranges this on C9
+    # Intentional Entity; every value in this store is a crm:E74 Group, and
+    # sh:class is what points the reference at the Group card, so E74 it is.
+    sh:property [
+        sh:path sdh:P30 ;
+        sh:name "is use by" ;
+        sh:class crm:E74 ;
+        sh:order 3 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    # P32 is use of (is used by), 0..n to 1..1 -- a use with nothing used is
+    # not a use. Ranged on E77 Persistent Item upstream; here it is always a
+    # Construction, which is also what the traversal below crosses back over.
+    sh:property [
+        sh:path sdh:P32 ;
+        sh:name "is use of" ;
+        sh:class sdh:C17 ;
+        sh:order 4 ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path sdh-short:P4 ;
+        sh:name "begins on" ;
+        sh:datatype xsd:string ;
+        sh:order 5 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path sdh-short:P7 ;
+        sh:name "ends on" ;
+        sh:datatype xsd:string ;
+        sh:order 6 ;
+        sh:maxCount 1 ;
+    ] .
+
+:UseTypeShape a sh:NodeShape ;
+    sh:targetClass sdh:C24 ;
+    sh:name "Use Type" ;
+
+    sh:property [
+        sh:path sdh-short:P9 ;
+        sh:name "Standard Label" ;
+        sh:datatype xsd:string ;
+        sh:order 1 ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path sdh-short:P11 ;
+        sh:name "Definition" ;
+        sh:datatype xsd:string ;
+        sh:order 2 ;
+    ] .

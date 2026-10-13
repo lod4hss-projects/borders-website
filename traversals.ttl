@@ -39,6 +39,20 @@
         sh:description "Start date of the crm:E6 Destruction. No E6 instances exist yet." ;
         sh:datatype xsd:string ;
         sh:maxCount 1 ;
+    ] ;
+    # a sdh:C23 Use points at the construction it is a use of, so the type of
+    # use is two steps away. Use is specified in use.ttl.
+    #
+    # No sh:maxCount: a construction is used many times over, each use
+    # carrying at most one type. Lydda Airport has five. A construction with
+    # two *distinct* use types therefore draws one mark per type at the same
+    # coordinates, which is the same thing a multi-valued colour field does
+    # anywhere else on a map.
+    sh:property [
+        sh:path ( [ sh:inversePath sdh:P32 ] sdh:P29 ) ;
+        sh:name "has use type" ;
+        sh:description "Type of the sdh:C23 Use that names this construction through sdh:P32." ;
+        sh:class sdh:C24 ;
     ] .
 
 :GroupTraversals a sh:NodeShape ;

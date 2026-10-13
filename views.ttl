@@ -7,7 +7,7 @@
     gen:slug "map" ;
     gen:navOrder 1 ;
     gen:geoField "Coordinates" ;
-    gen:colourBy "has construction type" .
+    gen:colourBy "has use type" .
 
 :Constructions a gen:Table ;
     gen:ofShape :ConstructionTraversals ;
