@@ -127,8 +127,6 @@ async function toClipboard(text) {
   } catch (error) {
     // fall through to the older path
   }
-  // a site served over http from anything but localhost is not a secure
-  // context, and navigator.clipboard is undefined there
   try {
     const area = document.createElement('textarea');
     area.value = text;
@@ -251,11 +249,8 @@ export function card(config, root) {
 // category, never its rank in the current result set.
 const OTHER_LABEL = 'Other';
 
-// A mark with no value for the colour field is a category of its own, and not
-// the same one as Other: Other is "ranked below the top three", this is "the
-// field is empty". So it cannot share Other's grey, and a fourth hue is what
-// the palette cap rules out. It is drawn hollow instead -- surface fill, grey
-// ring -- which reads as absence without spending a colour.
+// Empty is not Other -- Other is "ranked below the top three" -- so it cannot
+// share Other's grey. Drawn hollow, which costs no hue.
 const UNKNOWN_LABEL = 'Unknown';
 
 // Leaflet writes fill and stroke as SVG presentation attributes, and an
@@ -304,18 +299,12 @@ function classify(values, series) {
   return { colours, folded, blank };
 }
 
-// one swatch rule for the legend and for the popup list, so a row in the
-// list is recognisably the same thing as the slice it stands for
 function swatch(colour, ink) {
   return colour
     ? `background:${colour}`
     : `background:${ink.surface};box-shadow:0 0 0 2px ${ink.other}`;
 }
 
-// Several entities on one coordinate used to draw one marker each, stacked,
-// of which only the last was clickable and the rest unreachable -- five
-// constructions share the Lydda Airport point. They become one mark whose
-// popup lists all of them.
 function cluster(placed) {
   const groups = new Map();
   for (const p of placed) {
@@ -327,10 +316,6 @@ function cluster(placed) {
   return [...groups.values()];
 }
 
-// A mark covering more than one category is split into slices rather than
-// taking the colour of whichever category happens to outnumber the others,
-// which would hide the rest behind a click. Slices follow legend order, so a
-// category keeps both its colour and its position from point to point.
 function pie(parts, size, ink) {
   const total = parts.reduce((sum, part) => sum + part.n, 0);
   let turned = 0;
@@ -340,9 +325,7 @@ function pie(parts, size, ink) {
     return `${part.colour || ink.surface} ${from}deg `
       + `${(turned / total) * 360}deg`;
   });
-  // a slice standing for the empty category is surface-coloured, so the ring
-  // has to be the grey one or that slice would melt into a white ring --
-  // the same rule a wholly empty mark already follows
+  // an empty slice is surface-coloured and would melt into a white ring
   const ring = parts.some((part) => !part.colour) ? ink.other : ink.surface;
   return L.divIcon({
     className: 'map-pie',
@@ -398,8 +381,6 @@ export function map(config, root) {
       const groups = cluster(placed);
       const countOf = (row) =>
         (config.countVar ? Number(row[config.countVar]) || 0 : 0);
-      // a mark standing for several entities is scaled by what they add up
-      // to, so the scale is set by group totals and not by single records
       const totals = groups.map(
         (g) => g.members.reduce((sum, p) => sum + countOf(p.row), 0));
       const largest = config.countVar && totals.length ? Math.max(...totals) : 0;
@@ -407,18 +388,13 @@ export function map(config, root) {
       const { colours, folded, blank } = classify(
         kinds ? placed.map((p) => p.row[kinds]) : [], ink.series);
 
-      // the legend is settled before the first mark is drawn, because how
-      // many entries it ends up with is also the answer to "is colour saying
-      // anything here" -- and the marks have to agree with the legend
       const entries = [...colours.entries()];
       if (folded) entries.push([OTHER_LABEL, ink.other]);
-      // null stands for the hollow swatch, which has no colour to name
+      // a null colour is the hollow swatch
       if (blank) entries.push([config.unknownLabel || UNKNOWN_LABEL, null]);
       // one category carries no information, so the marks fall back to slot 1
       const telling = entries.length > 1;
       const unknownName = config.unknownLabel || UNKNOWN_LABEL;
-      // which legend entry a record belongs to: its own category, Other once
-      // it has ranked out of the palette, or the empty one
       const entryOf = (row) => {
         const kind = kinds ? row[kinds] : null;
         if (!kind) return unknownName;
@@ -426,9 +402,6 @@ export function map(config, root) {
       };
       const entryColour = new Map(entries);
 
-      // A lone record keeps the popup it always had. A shared point gets the
-      // list instead, because naming only the one that happened to be drawn
-      // last is how the others became unreachable in the first place.
       const popup = (members) => {
         if (members.length === 1) {
           const { row } = members[0];
@@ -475,12 +448,9 @@ export function map(config, root) {
       }));
 
       const bounds = [];
-      // every area goes down before any mark, so a later group's shape cannot
-      // bury an earlier group's mark
+      // areas first, so no shape buries another group's mark
       for (const { members, parts } of marks) {
         const only = parts.length === 1 ? parts[0] : null;
-        // the area is context, not identity: it takes the group's colour when
-        // the group has just the one, and stays neutral when it does not
         const tint = only && only.colour ? only.colour : ink.other;
         const seen = new Set();
         for (const { rings } of members) {
@@ -492,7 +462,6 @@ export function map(config, root) {
             opacity: 0.6,
             fillColor: tint,
             fillOpacity: 0.08,
-            // clicks belong to the mark, which carries the popup
             interactive: false,
           }).addTo(view);
           for (const ring of rings) bounds.push(...ring);
@@ -501,10 +470,7 @@ export function map(config, root) {
 
       for (const { point, members, parts } of marks) {
         const value = members.reduce((sum, p) => sum + countOf(p.row), 0);
-        // a mark standing for several records is drawn a little larger, or a
-        // shared point is indistinguishable from a lone one and the slices of
-        // a pie have no room to read. Where a count field is configured the
-        // radius already carries the group's total, so this keeps out of it.
+        // where a count field is set the radius is already spoken for
         const size = radius(value, largest)
           + (config.countVar ? 0 : Math.min(members.length - 1, 4));
         const only = parts.length === 1 ? parts[0] : null;
@@ -537,7 +503,6 @@ export function map(config, root) {
       const dropped = rows.length - placed.length;
       note.textContent =
         `${placed.length} of ${rows.length} records are on the map`
-        // otherwise a map of 17 records showing 9 marks looks like a bug
         + (groups.length < placed.length ? `, at ${groups.length} locations` : '')
         + (dropped ? `; ${dropped} had coordinates that could not be read.` : '.');
     } catch (error) {
