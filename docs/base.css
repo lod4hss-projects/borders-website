@@ -202,3 +202,48 @@ button.copy svg {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* --- flow: arcs, and the window that selects them --- */
+
+.legend .rule { display: inline-block; width: 34px; border-top-style: solid; flex: none; }
+.legend li.unit { color: var(--subtle); font-weight: 600; }
+
+.marker-popup .rate { color: var(--subtle); font-size: 12px; }
+
+.timeline { margin: 12px 0; }
+
+.histogram {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 46px;
+  padding: 0 2px;
+  background: var(--chart-surface);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+}
+.histogram .bar { flex: 1 1 0; min-width: 2px; background: var(--grid); border-radius: 1px 1px 0 0; }
+.histogram .bar[data-in] { background: var(--series-1); }
+
+.timeline .controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0 0 4px 4px;
+}
+.timeline .controls label { display: flex; align-items: center; gap: 8px; margin: 0; flex: 1 1 220px; }
+.timeline input[type="range"] { flex: 1; min-width: 120px; }
+.timeline output { color: var(--ink); font-variant-numeric: tabular-nums; flex: none; min-width: 7ch; }
+.timeline button {
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--panel);
+  font: inherit;
+  cursor: pointer;
+}

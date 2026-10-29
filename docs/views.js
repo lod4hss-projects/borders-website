@@ -351,6 +351,11 @@ function tooltip(root) {
   };
 }
 
+function radius(value, largest) {
+  if (!largest || !value) return 5;
+  return 4 + (Math.sqrt(value) / Math.sqrt(largest)) * 14;
+}
+
 export function map(config, root) {
   const ink = palette();
   const canvas = root.querySelector('[data-map]');
@@ -364,11 +369,6 @@ export function map(config, root) {
     subdomains: tiles.subdomains || 'abc',
     maxZoom: tiles.maxZoom || 19,
   }).addTo(view);
-
-  function radius(value, largest) {
-    if (!largest || !value) return 5;
-    return 4 + (Math.sqrt(value) / Math.sqrt(largest)) * 14;
-  }
 
   (async () => {
     try {
@@ -505,6 +505,302 @@ export function map(config, root) {
         `${placed.length} of ${rows.length} records are on the map`
         + (groups.length < placed.length ? `, at ${groups.length} locations` : '')
         + (dropped ? `; ${dropped} had coordinates that could not be read.` : '.');
+    } catch (error) {
+      fail(canvas, error);
+    }
+  })();
+}
+
+// A quadratic Bezier bent to the right of travel. Two directed routes
+// between the same pair therefore bow to opposite sides instead of being
+// drawn twice on the same line, which is what makes direction readable
+// without arrowheads.
+const BEND = 0.18;
+const MIN_WIDTH = 1.5;
+const WIDTH_STEP = 2.6;
+
+export function arcPoints(from, to, steps = 48, bend = BEND) {
+  const dLong = to.long - from.long;
+  const dLat = to.lat - from.lat;
+  if (!dLong && !dLat) return [[from.lat, from.long], [to.lat, to.long]];
+  // right-hand normal of the direction of travel, in degrees, which is the
+  // space the coordinates are in
+  const ctrlLat = (from.lat + to.lat) / 2 - dLong * bend;
+  const ctrlLong = (from.long + to.long) / 2 + dLat * bend;
+  const out = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
+    const u = 1 - t;
+    out.push([
+      u * u * from.lat + 2 * u * t * ctrlLat + t * t * to.lat,
+      u * u * from.long + 2 * u * t * ctrlLong + t * t * to.long,
+    ]);
+  }
+  return out;
+}
+
+// the same ladder query.py compiles for the chart: class i is the first
+// boundary the value does not reach
+export function widthClass(value, boundaries) {
+  let i = 0;
+  while (i < boundaries.length && value >= boundaries[i]) i += 1;
+  return i;
+}
+
+function arcWidth(cls) {
+  return MIN_WIDTH + cls * WIDTH_STEP;
+}
+
+function endOf(config, row, side) {
+  const iri = row[config[`${side}Var`]];
+  const shape = geometry(row[config[`${side}GeoVar`]]);
+  if (!iri || !shape) return null;
+  return { iri, name: row[config[`${side}LabelVar`]] || iri, point: shape.point };
+}
+
+// rows are one route per bucket; the page holds them all and the window
+// decides what is drawn, so dragging costs no query
+function collate(config, rows) {
+  const places = new Map();
+  const routes = new Map();
+  const buckets = new Set();
+  let dropped = 0;
+  for (const row of rows) {
+    const from = endOf(config, row, 'from');
+    const to = endOf(config, row, 'to');
+    if (!from || !to) { dropped += 1; continue; }
+    for (const end of [from, to]) {
+      if (!places.has(end.iri)) places.set(end.iri, end);
+    }
+    const bucket = config.bucketVar ? row[config.bucketVar] : '';
+    buckets.add(bucket);
+    const key = `${from.iri}\u0000${to.iri}`;
+    const found = routes.get(key)
+      || { from, to, counts: new Map() };
+    const value = Number(row[config.countVar]) || 0;
+    found.counts.set(bucket, (found.counts.get(bucket) || 0) + value);
+    routes.set(key, found);
+  }
+  return {
+    places: [...places.values()],
+    routes: [...routes.values()],
+    buckets: [...buckets].sort(),
+    dropped,
+  };
+}
+
+function totalsIn(routes, buckets, lo, hi) {
+  const window = buckets.slice(lo, hi + 1);
+  return routes.map((route) => ({
+    route,
+    total: window.reduce((sum, b) => sum + (route.counts.get(b) || 0), 0),
+  })).filter((entry) => entry.total > 0);
+}
+
+export function flow(config, root) {
+  const ink = palette();
+  const canvas = root.querySelector('[data-map]');
+  const legendBox = root.querySelector('[data-legend]');
+  const note = root.querySelector('[data-note]');
+  const stats = root.querySelector('[data-stats]');
+  const histogram = root.querySelector('[data-histogram]');
+  const fromInput = root.querySelector('[data-from]');
+  const toInput = root.querySelector('[data-to]');
+  const fromLabel = root.querySelector('[data-from-label]');
+  const toLabel = root.querySelector('[data-to-label]');
+  const playButton = root.querySelector('[data-play]');
+
+  const view = L.map(canvas, { zoomControl: true }).setView([46.8, 8.2], 7);
+  const tiles = config.tiles || {};
+  L.tileLayer(tiles.url, {
+    attribution: tiles.attribution || '',
+    subdomains: tiles.subdomains || 'abc',
+    maxZoom: tiles.maxZoom || 19,
+  }).addTo(view);
+  const arcLayer = L.layerGroup().addTo(view);
+  const placeLayer = L.layerGroup().addTo(view);
+
+  const boundaries = config.buckets || [];
+  const labels = config.bucketLabels || [];
+  const unit = config.countLabel || 'records';
+
+  function windowLabel(buckets, lo, hi) {
+    if (!buckets.length || !buckets[0]) return '';
+    return lo === hi ? buckets[lo] : `${buckets[lo]} – ${buckets[hi]}`;
+  }
+
+  function draw(data, lo, hi) {
+    arcLayer.clearLayers();
+    placeLayer.clearLayers();
+    const drawn = totalsIn(data.routes, data.buckets, lo, hi);
+    const when = windowLabel(data.buckets, lo, hi);
+    // Width is the rate, not the window total: a total grows with the width
+    // of the window, so no one set of boundaries can class both a single
+    // period and the whole range. A rate is comparable at either.
+    const periods = Math.max(1, hi - lo + 1);
+
+    const throughput = new Map(data.places.map((p) => [p.iri, 0]));
+    for (const { route, total } of drawn) {
+      throughput.set(route.from.iri, throughput.get(route.from.iri) + total);
+      throughput.set(route.to.iri, throughput.get(route.to.iri) + total);
+    }
+    const busiest = Math.max(0, ...throughput.values());
+
+    // thickest first, so a thin arc is never buried under a fat one
+    for (const { route, total } of [...drawn].sort((a, b) => b.total - a.total)) {
+      const line = L.polyline(arcPoints(route.from.point, route.to.point), {
+        color: ink.series[0],
+        weight: arcWidth(widthClass(total / periods, boundaries)),
+        opacity: 0.78,
+        // Leaflet's default simplification collapses a 49-point curve to as
+        // few as three points at this scale, which draws the arc as a kink
+        smoothFactor: 0,
+      });
+      line.bindPopup(
+        `<div class="marker-popup"><strong>${escapeHtml(route.from.name)}`
+        + ` → ${escapeHtml(route.to.name)}</strong>`
+        + (when ? `<div>${escapeHtml(when)}</div>` : '')
+        + `<div class="count">${total}</div><div>${escapeHtml(unit)}</div>`
+        + (periods > 1
+          ? `<div class="rate">${(total / periods).toFixed(1)} per `
+            + `${escapeHtml(config.timeBucket || 'period')}</div>`
+          : '')
+        + '</div>');
+      arcLayer.addLayer(line);
+    }
+
+    for (const place of data.places) {
+      const moved = throughput.get(place.iri) || 0;
+      const target = href(config, place.iri);
+      const marker = L.circleMarker([place.point.lat, place.point.long], {
+        radius: moved ? radius(moved, busiest) : 3,
+        fillColor: moved ? ink.series[0] : ink.surface,
+        color: moved ? ink.surface : ink.other,
+        weight: 2,
+        opacity: 1,
+        fillOpacity: moved ? 0.9 : 0.5,
+      });
+      marker.bindPopup(
+        `<div class="marker-popup"><strong>${escapeHtml(place.name)}</strong>`
+        + (when ? `<div>${escapeHtml(when)}</div>` : '')
+        + `<div class="count">${moved}</div><div>${escapeHtml(unit)}</div>`
+        + (target ? `<p><a href="${escapeHtml(target)}">Open this record</a></p>` : '')
+        + '</div>');
+      placeLayer.addLayer(marker);
+    }
+
+    const moved = drawn.reduce((sum, entry) => sum + entry.total, 0);
+    stats.innerHTML =
+      `<strong>${drawn.length}</strong> of ${data.routes.length} routes`
+      + `${when ? ` in ${escapeHtml(when)}` : ''}, carrying `
+      + `<strong>${moved}</strong> ${escapeHtml(unit)}.`;
+
+    if (histogram) {
+      const perBucket = data.buckets.map((bucket) => data.routes.reduce(
+        (sum, route) => sum + (route.counts.get(bucket) || 0), 0));
+      const tallest = Math.max(1, ...perBucket);
+      histogram.innerHTML = perBucket.map((value, i) =>
+        `<span class="bar" style="height:${(value / tallest) * 100}%"`
+        + `${i >= lo && i <= hi ? ' data-in=""' : ''}`
+        + ` title="${escapeHtml(data.buckets[i])}: ${value}"></span>`).join('');
+    }
+  }
+
+  (async () => {
+    try {
+      const rows = await run(config.endpoint, config.rows);
+      const data = collate(config, rows);
+      if (!data.routes.length) {
+        note.textContent = 'No routes to draw.';
+        return;
+      }
+      const last = Math.max(0, data.buckets.length - 1);
+      const state = { lo: 0, hi: last };
+
+      // only the classes the data actually reaches, so no legend entry is
+      // left standing for a width nothing is drawn at
+      const present = new Set(data.routes.flatMap(
+        (route) => [...route.counts.values()].map(
+          (n) => widthClass(n, boundaries))));
+      const whole = Math.max(1, data.buckets.length);
+      const windowed = new Set(totalsIn(data.routes, data.buckets, 0, last)
+        .map(({ total }) => widthClass(total / whole, boundaries)));
+      const unitLabel = config.timeBucket
+        ? `${unit} / ${config.timeBucket}` : unit;
+      legendBox.innerHTML = `<li class="unit">${escapeHtml(unitLabel)}</li>`
+        + labels
+        .map((label, cls) => ({ label, cls }))
+        .filter(({ cls }) => present.has(cls) || windowed.has(cls))
+        .map(({ label, cls }) =>
+          `<li><span class="rule" style="border-top-width:${arcWidth(cls)}px;`
+          + `border-top-color:${ink.series[0]}"></span>${escapeHtml(label)}`
+          + `</li>`).join('');
+
+      const bounds = data.places.map((p) => [p.point.lat, p.point.long]);
+      if (bounds.length) view.fitBounds(bounds, { padding: [30, 30] });
+
+      note.textContent =
+        `${data.routes.length} routes between ${data.places.length} places`
+        + (data.buckets.length > 1
+          ? `, over ${data.buckets.length} ${config.timeBucket || 'period'}s`
+          : '')
+        + (data.dropped
+          ? `; ${data.dropped} rows had an end whose coordinates could not be `
+            + 'read.'
+          : '.');
+
+      for (const input of [fromInput, toInput]) {
+        if (!input) continue;
+        input.min = '0';
+        input.max = String(last);
+        input.step = '1';
+      }
+      if (fromInput) fromInput.value = '0';
+      if (toInput) toInput.value = String(last);
+
+      const redraw = () => draw(data, state.lo, state.hi);
+      const sync = () => {
+        if (fromInput) fromInput.value = String(state.lo);
+        if (toInput) toInput.value = String(state.hi);
+        if (fromLabel) fromLabel.textContent = data.buckets[state.lo] || '';
+        if (toLabel) toLabel.textContent = data.buckets[state.hi] || '';
+        redraw();
+      };
+      if (fromInput) {
+        fromInput.addEventListener('input', () => {
+          state.lo = Number(fromInput.value);
+          if (state.hi < state.lo) state.hi = state.lo;
+          sync();
+        });
+      }
+      if (toInput) {
+        toInput.addEventListener('input', () => {
+          state.hi = Number(toInput.value);
+          if (state.lo > state.hi) state.lo = state.hi;
+          sync();
+        });
+      }
+      if (playButton) {
+        let timer = null;
+        const stop = () => {
+          clearInterval(timer);
+          timer = null;
+          playButton.innerHTML = '&#9654; Play';
+        };
+        playButton.addEventListener('click', () => {
+          if (timer) { stop(); return; }
+          playButton.innerHTML = '&#10073;&#10073; Pause';
+          // the window keeps its width and walks, so Play reads as the same
+          // control the handles set rather than a second mode
+          timer = setInterval(() => {
+            const width = state.hi - state.lo;
+            state.lo = state.lo + 1 > last - width ? 0 : state.lo + 1;
+            state.hi = state.lo + width;
+            sync();
+          }, 500);
+        });
+      }
+      sync();
     } catch (error) {
       fail(canvas, error);
     }
